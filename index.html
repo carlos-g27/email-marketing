@@ -820,7 +820,8 @@
     const EMAILJS_CONFIG = {
       publicKey: 'uAd6g1CNTtWdMVgtw',
       serviceId: 'service_ygv7u3k',
-      templateId: 'template_a6839px'
+      templateId: 'template_a6839px',
+      fallbackTo: 'hola@aureatravel.com'
     };
 
     /* =====================================================
@@ -831,6 +832,12 @@
     const submitBtn = document.getElementById('submitBtn');
     const emailInput = document.getElementById('user_email');
 
+    const hasEmailJsConfig = () => {
+      return Object.values(EMAILJS_CONFIG)
+        .filter(value => typeof value === 'string')
+        .every(value => value && !value.startsWith('TU_'));
+    };
+
     if (window.emailjs) {
       emailjs.init({ publicKey: EMAILJS_CONFIG.publicKey });
     }
@@ -838,6 +845,19 @@
     function setStatus(msg, type) {
       statusEl.textContent = msg;
       statusEl.className = 'status ' + (type || '');
+    }
+
+    function fallbackMailto(email) {
+      const subject = encodeURIComponent('Código de bienvenida Áurea Travel');
+      const body = encodeURIComponent(
+        `Hola,\n\n` +
+        `Muchas gracias por suscribirte a Áurea Travel.\n` +
+        `Tu dirección registrada es: ${email}\n\n` +
+        `Te enviaremos tu código de bienvenida y ideas de viaje a la brevedad.`
+      );
+
+      window.location.href = `mailto:${EMAILJS_CONFIG.fallbackTo}?subject=${subject}&body=${body}`;
+      setStatus('Se abrió tu cliente de correo para enviar el registro. Si no aparece, revisa que tu correo esté configurado.', 'ok');
     }
 
     form.addEventListener('submit', async (e) => {
@@ -850,12 +870,18 @@
         emailInput.focus();
         return;
       }
-      if (!window.emailjs) {
-        setStatus('No se pudo cargar el servicio de envío. Revise su conexión e intente de nuevo.', 'err');
-        return;
-      }
-      if (Object.values(EMAILJS_CONFIG).some(v => v.startsWith('TU_'))) {
-        setStatus('Falta configurar Public Key, Service ID y Template ID de EmailJS en el código.', 'err');
+
+      const configIsComplete = hasEmailJsConfig();
+      const emailjsReady = !!window.emailjs && configIsComplete;
+
+      if (!emailjsReady) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Preparando correo...';
+        fallbackMailto(email);
+        setTimeout(() => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Suscribirme';
+        }, 1200);
         return;
       }
 
